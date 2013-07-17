@@ -2,10 +2,10 @@ import arcpy
 from arcpy import env
 
 # load the standard OpenStreetMap bpx as it references the core OSM tools
-arcpy.ImportToolbox(r'C:\Data\OSM\OpenStreetMap Toolbox.tbx')
+arcpy.ImportToolbox(r'C:\Program Files\ESRI\OSMEditor\Data\OpenStreetMap Toolbox.tbx')
 
 # define the enterprise geodatabase workspace
-env.workspace = r'C:\Data\OSM\Mxds\NewOSMDEV.sde'
+env.workspace = r'C:\Data\OSM\Mxds\osmsdeconn.sde'
 
 # get the feature set (first parameter) to extract the AOI envelope
 aoi_featureset = arcpy.GetParameter(0)
@@ -20,6 +20,8 @@ nameOfPolygonFeatureClass = arcpy.os.path.join(env.workspace, validatedTableName
 
 # request the data from the OSM server and store it in the target feature dataset
 arcpy.OSMGPDownload_osmtools(r'http://www.openstreetmap.org', aoi_featureset,'DO_NOT_INCLUDE_REFERENCES', nameOfTargetDataset, nameOfPointFeatureClass, nameOfLineFeatureClass, nameOfPolygonFeatureClass)
+
+arcpy.OSMGPAttributeSelector_osmtools(nameOfPolygonFeatureClass,"addr:city;addr:country;source;source:name")
 
 # Return the resulting messages as script tool output messages
 #
