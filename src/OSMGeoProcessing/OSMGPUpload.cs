@@ -34,7 +34,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
     {
         string m_DisplayName = String.Empty;
         string m_Generator = "ArcGIS";
-        int in_uploadURLNumber, in_changesTablesNumber, in_uploadCommentNumber, in_uploadFormatNumber, in_userNameNumber, in_passwordNumber;
+       int in_uploadURLNumber, in_changesTablesNumber, in_uploadCommentNumber, in_uploadFormatNumber, in_loginauthenticationNumber;
         ResourceManager resourceManager = null;
         OSMUtility _osmUtility = null;
         OSMGPFactory osmGPFactory = null;
@@ -114,32 +114,17 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                 TrackCancel = new CancelTrackerClass();
             }
 
-            IGPParameter userNameParameter = paramvalues.get_Element(in_userNameNumber) as IGPParameter;
-            IGPString userNameGPValue = gpUtilities3.UnpackGPValue(userNameParameter) as IGPString;
-
-            IHttpBasicGPValue userCredentialGPValue = new HttpBasicGPValue();
-
-            if (userNameGPValue != null)
-            {
-                userCredentialGPValue.UserName = userNameGPValue.Value;
-            }
-            else
-            {
-                return;
-            }
-
-            IGPParameter passwordParameter = paramvalues.get_Element(in_passwordNumber) as IGPParameter;
-            IGPStringHidden passwordGPValue = gpUtilities3.UnpackGPValue(passwordParameter) as IGPStringHidden;
-
-            if (passwordGPValue != null)
-            {
-                userCredentialGPValue.PassWord = passwordGPValue.Value;
-            }
-            else
-            {
-                return;
-            }
-
+            IGPParameter loginParameter = paramvalues.get_Element(in_loginauthenticationNumber) as IGPParameter; 
+            IHttpBasicGPValue loginHttpBasicGPValue = gpUtilities3.UnpackGPValue(loginParameter) as IHttpBasicGPValue; 
+             
+            IGPString loginandPasswordBackup = null; 
+            if (loginHttpBasicGPValue == null)
+            { 
+                loginandPasswordBackup = gpUtilities3.UnpackGPValue(loginParameter) as IGPString; 
+                loginHttpBasicGPValue = new HttpBasicGPValue(); 
+                loginHttpBasicGPValue.EncodedUserNamePassWord = loginandPasswordBackup.Value;                 
+            } 
+            
             ITable revisionTable = null;
             int secondsToTimeout = 10;
 
@@ -177,7 +162,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                 HttpWebRequest httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/capabilities") as HttpWebRequest;
                 httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
-                SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                 httpClient.Timeout = secondsToTimeout * 1000;
 
                 createChangeSetOSM.generator = m_Generator;
@@ -243,7 +228,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                     httpClient = null;
                     httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/user/details") as HttpWebRequest;
                     httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
-                    SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                    SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
 
                     httpResponse = httpClient.GetResponse() as HttpWebResponse;
 
@@ -388,7 +373,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                 HttpWebRequest httpClient2 = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/changeset/create") as HttpWebRequest;
                 httpClient2.Method = "PUT";
                 httpClient2 = OSMGPDownload.AssignProxyandCredentials(httpClient2);
-                SetBasicAuthHeader(httpClient2, userCredentialGPValue.EncodedUserNamePassWord);
+                SetBasicAuthHeader(httpClient2, loginHttpBasicGPValue.EncodedUserNamePassWord);
                 httpClient2.Timeout = secondsToTimeout * 1000;
 
                 try
@@ -491,7 +476,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             {
                                 if (TrackCancel.Continue() == false)
                                 {
-                                    closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                    closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                     return;
                                 }
 
@@ -539,7 +524,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                         httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/changeset/" + changeSetID + "/upload") as HttpWebRequest;
                                         httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
                                         httpClient.Method = "POST";
-                                        SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                        SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                         httpClient.Timeout = secondsToTimeout * 1000;
 
                                         string sContent = OsmRest.SerializeUtils.CreateXmlSerializable(osmChangeDocument, null, Encoding.UTF8, "text/xml");
@@ -560,7 +545,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                     }
                                     catch (Exception ex)
                                     {
-                                        closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                        closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                         message.AddError(120009, ex.Message);
 
                                         if (ex is WebException)
@@ -593,11 +578,11 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                                     if (TrackCancel.Continue() == false)
                                     {
-                                        closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                        closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                         return;
                                     }
 
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 switch (elementType)
@@ -682,7 +667,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                         {
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
 
@@ -764,7 +749,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                         httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/changeset/" + changeSetID + "/upload") as HttpWebRequest;
                                         httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
                                         httpClient.Method = "POST";
-                                        SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                        SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                         httpClient.Timeout = secondsToTimeout * 1000;
 
 
@@ -783,7 +768,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                     }
                                     catch (Exception ex)
                                     {
-                                        closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                        closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                         message.AddError(120009, ex.Message);
 
                                         if (ex is WebException)
@@ -816,11 +801,11 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                                     if (TrackCancel.Continue() == false)
                                     {
-                                        closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                        closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                         return;
                                     }
 
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 switch (elementType)
@@ -904,7 +889,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             {
                                 if (TrackCancel.Continue() == false)
                                 {
-                                    closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                    closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                     return;
                                 }
 
@@ -969,7 +954,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                             httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/changeset/" + changeSetID + "/upload") as HttpWebRequest;
                                             httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
                                             httpClient.Method = "POST";
-                                            SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                            SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                             httpClient.Timeout = secondsToTimeout * 1000;
 
 
@@ -988,7 +973,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                         }
                                         catch (Exception ex)
                                         {
-                                            closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                            closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                             message.AddError(120009, ex.Message);
 
                                             if (ex is WebException)
@@ -1022,11 +1007,11 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                                         if (TrackCancel.Continue() == false)
                                         {
-                                            closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                            closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                             return;
                                         }
 
-                                        CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                        CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                     }
 
                                     switch (elementType)
@@ -1118,7 +1103,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                     if (TrackCancel.Continue() == false)
                     {
-                        closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                        closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                         return;
                     }
 
@@ -1131,7 +1116,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                         httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/changeset/" + changeSetID + "/upload") as HttpWebRequest;
                         httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
                         httpClient.Method = "POST";
-                        SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                        SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                         httpClient.Timeout = secondsToTimeout * 1000;
 
                         message.AddMessage(String.Format(resourceManager.GetString("GPTools_OSMGPUpload_featureSubmit"), featureUpdateCounter));
@@ -1228,7 +1213,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 // into multiple sets
                                 if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                                 {
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 osm createNode = CreateOSMNodeRepresentation(pointFeatureClass, action, osmOldID, changeSetID, -1, null, internalExtensionVersion);
@@ -1237,7 +1222,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/create") as HttpWebRequest;
                                 httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
                                 httpClient.Method = "PUT";
-                                SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                 httpClient.Timeout = secondsToTimeout * 1000;
 
                                 httpResponse = null;
@@ -1319,7 +1304,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
                         }
@@ -1375,7 +1360,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 // into multiple sets
                                 if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                                 {
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 osm createWay = new osm();
@@ -1393,7 +1378,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                     HttpWebRequest httpClient3 = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/create") as HttpWebRequest;
                                     httpClient3 = OSMGPDownload.AssignProxyandCredentials(httpClient3);
                                     httpClient3.Method = "PUT";
-                                    SetBasicAuthHeader(httpClient3, userCredentialGPValue.EncodedUserNamePassWord);
+                                    SetBasicAuthHeader(httpClient3, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                     httpClient.Timeout = secondsToTimeout * 1000;
 
                                     string sContent = OsmRest.SerializeUtils.CreateXmlSerializable(createWay, serializer, Encoding.UTF8, "text/xml");
@@ -1484,7 +1469,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
 
                                 return;
                             }
@@ -1542,7 +1527,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 // into multiple sets
                                 if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                                 {
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 osm createRelation = null;
@@ -1563,7 +1548,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 {
                                     HttpWebRequest httpClient4 = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/create") as HttpWebRequest;
                                     httpClient4 = OSMGPDownload.AssignProxyandCredentials(httpClient4);
-                                    SetBasicAuthHeader(httpClient4, userCredentialGPValue.EncodedUserNamePassWord);
+                                    SetBasicAuthHeader(httpClient4, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                     httpClient4.Timeout = secondsToTimeout * 1000;
                                     string sContent = OsmRest.SerializeUtils.CreateXmlSerializable(createRelation, serializer, Encoding.UTF8, "text/xml");
 
@@ -1651,7 +1636,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
                         }
@@ -1701,7 +1686,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                 // into multiple sets
                                 if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                                 {
-                                    CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                    CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                                 }
 
                                 switch (elementType)
@@ -1746,7 +1731,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                                 {
                                                     HttpWebRequest httpClient5 = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/" + modifyID.ToString()) as HttpWebRequest;
                                                     httpClient5 = OSMGPDownload.AssignProxyandCredentials(httpClient5);
-                                                    SetBasicAuthHeader(httpClient5, userCredentialGPValue.EncodedUserNamePassWord);
+                                                    SetBasicAuthHeader(httpClient5, loginHttpBasicGPValue.EncodedUserNamePassWord);
 
                                                     osm updateNode = CreateOSMNodeRepresentation(pointFeatureClass, action, modifyID, changeSetID, osmVersion, null, internalExtensionVersion);
 
@@ -1877,7 +1862,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                                     string sContent = OsmRest.SerializeUtils.CreateXmlSerializable(updateWay, serializer, Encoding.UTF8, "text/xml");
                                                     httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/" + modifyID.ToString()) as HttpWebRequest;
                                                     httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
-                                                    SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                                    SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                                     OsmRest.HttpUtils.Put(httpClient, sContent);
 
                                                     httpResponse = httpClient.GetResponse() as HttpWebResponse;
@@ -1990,7 +1975,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                                                     string sContent = OsmRest.SerializeUtils.CreateXmlSerializable(updateRelation, serializer, Encoding.UTF8, "text/xml");
                                                     httpClient = HttpWebRequest.Create(baseURLGPString.Value + "/api/0.6/" + elementType + "/" + modifyID.ToString()) as HttpWebRequest;
                                                     httpClient = OSMGPDownload.AssignProxyandCredentials(httpClient);
-                                                    SetBasicAuthHeader(httpClient, userCredentialGPValue.EncodedUserNamePassWord);
+                                                    SetBasicAuthHeader(httpClient, loginHttpBasicGPValue.EncodedUserNamePassWord);
                                                     OsmRest.HttpUtils.Put(httpClient, sContent);
 
                                                     httpResponse = httpClient.GetResponse() as HttpWebResponse;
@@ -2084,7 +2069,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
 
                                 return;
                             }
@@ -2114,7 +2099,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             // into multiple sets
                             if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                             {
-                                CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                             }
 
 
@@ -2136,7 +2121,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             string errorMessage = String.Empty;
                             try
                             {
-                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/relation/" + Convert.ToString(osmID), sContent, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
+                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/relation/" + Convert.ToString(osmID), sContent, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
 
                                 // track the update/sync requests against the server
                                 featureUpdateCounter = featureUpdateCounter + 1;
@@ -2178,7 +2163,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
 
@@ -2206,7 +2191,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             // into multiple sets
                             if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                             {
-                                CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                             }
 
                             long osmID = -1;
@@ -2227,7 +2212,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             try
                             {
                                 httpResponse = null;
-                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/way/" + Convert.ToString(osmID), sContent, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
+                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/way/" + Convert.ToString(osmID), sContent, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
 
                                 // track the update/sync requests against the server
                                 featureUpdateCounter = featureUpdateCounter + 1;
@@ -2272,7 +2257,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
                         }
@@ -2298,7 +2283,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                             // into multiple sets
                             if ((featureUpdateCounter % maxElementsinChangeSet) == 0)
                             {
-                                CreateNextChangeSet(message, createChangeSetOSM, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
+                                CreateNextChangeSet(message, createChangeSetOSM, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, ref changeSetID, baseURLGPString, ref featureUpdateCounter);
                             }
 
                             long osmID = -1;
@@ -2351,7 +2336,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             try
                             {
-                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/node/" + Convert.ToString(osmID), sContent, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
+                                httpResponse = OsmRest.HttpUtils.Delete(baseURLGPString.Value + "/api/0.6/node/" + Convert.ToString(osmID), sContent, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout) as HttpWebResponse;
 
                                 if (revStatusFieldIndex != -1)
                                 {
@@ -2396,7 +2381,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
 
                             if (TrackCancel.Continue() == false)
                             {
-                                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
                                 return;
                             }
                         }
@@ -2414,7 +2399,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
             }
             finally
             {
-                closeChangeSet(message, userCredentialGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
+                closeChangeSet(message, loginHttpBasicGPValue.EncodedUserNamePassWord, secondsToTimeout, changeSetID, baseURLGPString);
 
                 if (revisionTable != null)
                 {
@@ -2642,29 +2627,18 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
                 in_uploadFormatNumber = 3;
                 parameters.Add((IGPParameter)uploadFormatParameter);
 
-                // user name
-                IGPParameterEdit3 userNameParameter = new GPParameterClass() as IGPParameterEdit3;
-                userNameParameter.DataType = new GPStringTypeClass();
-                userNameParameter.Direction = esriGPParameterDirection.esriGPParameterDirectionInput;
-                userNameParameter.DisplayName = resourceManager.GetString("GPTools_OSMGPUpload_username");
+                // osm server login 
+                IGPParameterEdit3 loginParameter = new GPParameterClass() as IGPParameterEdit3; 
+                loginParameter.DataType = new HttpBasicDataType(); 
+                loginParameter.Direction = esriGPParameterDirection.esriGPParameterDirectionInput; 
+                loginParameter.DisplayName = resourceManager.GetString("GPTools_OSMGPUpload_authentication_caption"); 
                 // oauthUserNameParameter.Category = resourceManager.GetString("GPTools_OSMGPUpload_oauth_category");
-                userNameParameter.Name = "in_osm_username";
-                userNameParameter.ParameterType = esriGPParameterType.esriGPParameterTypeRequired;
-
-                in_userNameNumber = 4;
-                parameters.Add((IGPParameter)userNameParameter);
-
-                 // password
-                IGPParameterEdit3 passwordParameter = new GPParameterClass() as IGPParameterEdit3;
-                passwordParameter.DataType = new GPStringHiddenTypeClass();
-                passwordParameter.Direction = esriGPParameterDirection.esriGPParameterDirectionInput;
-                passwordParameter.DisplayName = resourceManager.GetString("GPTools_OSMGPUpload_password");
-                // oauthUserNameParameter.Category = resourceManager.GetString("GPTools_OSMGPUpload_oauth_category");
-                passwordParameter.Name = "in_osm_password";
-                passwordParameter.ParameterType = esriGPParameterType.esriGPParameterTypeRequired;
-
-                in_passwordNumber = 5;
-                parameters.Add((IGPParameter)passwordParameter);
+                loginParameter.Name = "in_authentication_login"; 
+                loginParameter.ParameterType = esriGPParameterType.esriGPParameterTypeRequired; 
+                
+                in_loginauthenticationNumber = 4; 
+                parameters.Add((IGPParameter)loginParameter); 
+                                
                 return parameters;
             }
         }
