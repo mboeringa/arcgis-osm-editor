@@ -1,4 +1,4 @@
-// (c) Copyright Esri, 2010 - 2013
+// (c) Copyright Esri, 2010 - 2016
 // This source is subject to the Apache 2.0 License.
 // Please see http://www.apache.org/licenses/LICENSE-2.0.html for details.
 // All other rights reserved.
@@ -284,7 +284,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
             if (String.IsNullOrEmpty(value))
                 return;
 
-            string authInfo = Encoding.Default.GetString(Convert.FromBase64String(value));
+            string authInfo = Encoding.UTF8.GetString(Convert.FromBase64String(value));
             string[] splitAuthInfo = authInfo.Split(":".ToCharArray());
 
             m_username = splitAuthInfo[0];
@@ -301,7 +301,7 @@ namespace ESRI.ArcGIS.OSM.GeoProcessing
             try
             {
                     string authInfo = m_username + ":" + m_password;
-                    authInfo = Convert.ToBase64String(Encoding.Default.GetBytes(authInfo));
+                    authInfo = Convert.ToBase64String(Encoding.UTF8.GetBytes(authInfo));
                     encodedAuthenticationString = authInfo;
             }
             catch { }
